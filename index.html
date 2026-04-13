@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATT Echivalente — Căutare Cod</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#e8e8e8;--surface:#f4f4f4;--surface2:#dcdcdc;--border:#b8b8b8;--accent:#cc1500;--text:#1a1a1a;--text-dim:#555555;--green:#27ae60;--red:#c0392b;--mono:"Share Tech Mono",monospace;--head:"Rajdhani",sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--head);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 16px 60px;}
+
+  /* Loading */
+  #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:100;transition:opacity .4s;}
+  #loading.hidden{opacity:0;pointer-events:none;}
+  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #loading p{font-family:var(--mono);font-size:13px;color:var(--text-dim);letter-spacing:1px;}
+  #load-progress{font-family:var(--mono);font-size:12px;color:var(--accent);}
+
+  header{width:100%;max-width:900px;padding:32px 0 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #b8b8b8;margin-bottom:32px;}
+  .logo-img{height:72px;width:auto;flex-shrink:0;}
+  .logo-text h1{font-size:26px;font-weight:700;letter-spacing:2px;color:#cc1500;text-transform:uppercase;}
+  .logo-text p{font-size:13px;letter-spacing:1.5px;color:#555555;text-transform:uppercase;margin-top:2px;}
+  .badges{margin-left:auto;display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+  .badge{background:#ffffff;border:1px solid #cccccc;border-radius:4px;padding:3px 10px;font-family:var(--mono);font-size:12px;color:#555;white-space:nowrap;}
+  .badge span{color:#cc1500;}
+
+  .search-wrap{width:100%;max-width:900px;position:relative;margin-bottom:8px;}
+  .search-wrap input{width:100%;background:#ffffff;border:1px solid #b8b8b8;border-radius:6px;padding:16px 56px 16px 20px;font-family:var(--mono);font-size:20px;color:#1a1a1a;letter-spacing:1px;outline:none;transition:border-color .2s,box-shadow .2s;}
+  .search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(192,57,43,.12);}
+  .search-wrap input::placeholder{color:#aaa;}
+  .search-wrap input:disabled{opacity:.5;}
+  .clear-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px;display:none;}
+  .clear-btn:hover{color:var(--accent);}
+  .hint{font-family:var(--mono);font-size:13px;color:var(--text-dim);margin-bottom:28px;width:100%;max-width:900px;letter-spacing:.5px;}
+
+  .status{display:flex;align-items:center;gap:10px;font-size:15px;letter-spacing:.5px;margin-bottom:16px;color:var(--text-dim);min-height:24px;}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot.found{background:var(--green);box-shadow:0 0 8px var(--green);}
+  .dot.notfound{background:var(--red);}
+  .dot.idle{background:#aaa;}
+
+  .section-label{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+  .section-label::after{content:"";flex:1;height:1px;background:#b8b8b8;}
+
+  .result-group{background:#ffffff;border:1px solid #cccccc;border-radius:8px;overflow:hidden;margin-bottom:12px;animation:fadeIn .18s ease both;}
+  .result-group.has-parts{border-left:3px solid var(--green);}
+
+  .group-header{padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .main-code-btn{font-family:var(--mono);font-size:26px;font-weight:700;color:#000000;letter-spacing:1.5px;background:rgba(192,57,43,.08);border:1.5px solid rgba(192,57,43,.4);border-radius:6px;padding:6px 16px;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0;}
+  .main-code-btn:hover{background:rgba(192,57,43,.15);border-color:var(--accent);}
+  .main-code-btn.copied{background:rgba(39,174,96,.15);border-color:#27ae60;color:#27ae60;}
+  .sep{color:#cccccc;font-size:18px;flex-shrink:0;}
+  .bts-code{font-family:var(--mono);font-size:16px;color:#000000;letter-spacing:1px;flex-shrink:0;cursor:pointer;padding:4px 8px;border:1px solid transparent;border-radius:4px;transition:border-color .15s,color .15s;}
+  .bts-code:hover{border-color:#cccccc;color:#1a1a1a;}
+  .bts-code.copied{border-color:var(--green);color:var(--green);}
+
+  .group-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;}
+  .parts-tag{font-size:12px;letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border-radius:4px;background:rgba(39,174,96,.1);color:var(--green);border:1px solid rgba(39,174,96,.3);cursor:pointer;white-space:nowrap;transition:background .15s;font-family:var(--head);font-weight:600;}
+  .parts-tag:hover{background:rgba(39,174,96,.2);}
+  .toggle-btn{font-size:12px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border:1px solid #cccccc;border-radius:4px;cursor:pointer;transition:color .15s,border-color .15s;font-family:var(--head);font-weight:600;white-space:nowrap;}
+  .toggle-btn:hover{color:var(--text);border-color:#999;}
+
+  .all-equiv{display:none;padding:12px 18px 16px;border-top:1px solid #cccccc;background:#ebebeb;}
+  .all-equiv.open{display:block;}
+  .equiv-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+  .equiv-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-family:var(--mono);font-size:13px;color:#000000;background:#f4f4f4;border:1px solid #cccccc;border-radius:4px;padding:4px 10px;cursor:pointer;transition:border-color .12s,color .12s;display:flex;align-items:center;gap:6px;}
+  .chip:hover{border-color:#999;color:#000;}
+  .chip.copied{border-color:var(--green);color:var(--green);}
+  .chip .brand{font-size:11px;color:#777;font-family:var(--head);letter-spacing:.5px;}
+
+  .parts-wrap{padding:0 18px 16px;display:none;}
+  .parts-panel{background:#ffffff;border:1px solid rgba(192,57,43,.5);border-radius:6px;overflow:hidden;animation:fadeIn .18s ease;}
+  .parts-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(192,57,43,.05);border-bottom:1px solid #cccccc;flex-wrap:wrap;gap:6px;}
+  .parts-title{font-size:13px;font-weight:700;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;}
+  .parts-cod{font-family:var(--mono);font-size:15px;color:#000000;}
+  .parts-count{font-family:var(--mono);font-size:13px;color:var(--text-dim);}
+  .parts-table{width:100%;border-collapse:collapse;}
+  .parts-table th{padding:8px 14px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#555;text-align:left;border-bottom:1px solid #cccccc;background:#ebebeb;}
+  .parts-table th.qty-col,.parts-table th.pct-col{text-align:center;}
+  .parts-table th.qty-col{width:55px;}
+  .parts-table th.pct-col{width:80px;}
+  .parts-table td{padding:9px 14px;font-family:var(--mono);font-size:13px;border-bottom:1px solid #eeeeee;color:var(--text);vertical-align:middle;}
+  .parts-table td.qty-val{text-align:center;color:var(--accent);font-weight:600;}
+  .parts-table td.pct-val{text-align:center;font-weight:600;}
+  .parts-table tr:last-child td{border-bottom:none;}
+  .parts-table tr:hover td{background:#f9f9f9;}
+  .parts-table td.cod-val{color:#000000;letter-spacing:.5px;white-space:nowrap;}
+  .parts-table td.idx-val{color:#777;font-size:12px;width:32px;}
+  .parts-table td.def-val{color:#444;font-size:12px;font-family:var(--head);}
+  .no-def{color:#aaa;}
+  .pct-bar-wrap{display:flex;align-items:center;gap:6px;justify-content:center;}
+  .pct-bar{height:4px;border-radius:2px;min-width:4px;}
+  .pct-text{font-size:11px;white-space:nowrap;}
+  .no-parts-msg{padding:20px;text-align:center;font-family:var(--mono);font-size:13px;color:var(--text-dim);}
+
+  .not-found{display:none;padding:32px;text-align:center;background:#ffffff;border:1px solid #cccccc;border-radius:8px;}
+  .not-found .nf-icon{font-size:32px;margin-bottom:12px;opacity:.4;}
+  .not-found p{color:#555;font-size:16px;letter-spacing:.5px;}
+  .not-found code{font-family:var(--mono);color:var(--accent);font-size:14px;}
+
+  footer{width:100%;max-width:900px;margin-top:40px;padding-top:16px;border-top:1px solid #b8b8b8;font-size:13px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  @media(max-width:640px){
+    .main-code-btn{font-size:20px;padding:5px 12px;}
+    .bts-code{font-size:14px;}
+    .parts-table td,.parts-table th{padding:7px 8px;font-size:11px;}
+    .badges{display:none;}
+    .parts-table td.def-val,.parts-table th.def-col{display:none;}
+    .pct-bar{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Se încarcă baza de date...</p>
+  <div id="load-progress">0 / 3 fișiere</div>
+</div>
+
+<header>
+  <img src="logo.jpg" class="logo-img" alt="ATT Logo">
+  <div class="logo-text">
+    <h1>ATT Echivalente</h1>
+    <p>Sistem căutare coduri echivalente</p>
+  </div>
+  <div class="badges">
+    <div class="badge">Echivalente: <span id="db-count">—</span></div>
+    <div class="badge">Turbine cu piese: <span id="parts-count">—</span></div>
+  </div>
+</header>
+
+<div class="search-wrap">
+  <input type="text" id="searchInput" placeholder="Introdu orice cod: BTS, Garrett, OEM..." autocomplete="off" autocorrect="off" spellcheck="false" disabled>
+  <button class="clear-btn" id="clearBtn">✕</button>
+</div>
+<div class="hint">Cod principal (12xxx/13xxx) + cod BTS · click pe cod = copiază · "piese" = componente cu frecvență · "toate" = toate echivalentele</div>
+
+<div style="width:100%;max-width:900px;">
+  <div class="status"><div class="dot idle" id="statusDot"></div><span id="statusText">Se încarcă datele...</span></div>
+  <div id="equivSection" style="display:none;">
+    <div class="section-label">Rezultate</div>
+    <div id="groupsContainer"></div>
+  </div>
+  <div class="not-found" id="notFound">
+    <div class="nf-icon">⊘</div>
+    <p>Niciun echivalent BE Turbo găsit pentru <code id="nfCode"></code></p>
+    <p style="margin-top:8px;font-size:14px;">Codul nu există sau nu are corespondent 12xxx/13xxx</p>
+  </div>
+</div>
+
+<footer>
+  <span>© ATT Turbo Balancing Systems</span>
+  <span>bts_Echivalente · BAZA_DATE_PIESE · BAZA_DATE_RETETA</span>
+</footer>
+
+<script>
+let GROUPS={}, LOOKUP={}, PARTS={};
+let loaded=0;
+
+function onLoaded(){
+  loaded++;
+  document.getElementById('load-progress').textContent=loaded+' / 3 fișiere';
+  if(loaded===3){
+    document.getElementById('db-count').textContent=Object.keys(LOOKUP).length.toLocaleString('ro-RO');
+    document.getElementById('parts-count').textContent=Object.keys(PARTS).length.toLocaleString('ro-RO');
+    document.getElementById('loading').classList.add('hidden');
+    const inp=document.getElementById('searchInput');
+    inp.disabled=false; inp.focus();
+    document.getElementById('statusText').textContent='Introdu un cod pentru a căuta';
+  }
+}
+
+fetch('groups.json').then(r=>r.json()).then(d=>{GROUPS=d;onLoaded();}).catch(e=>console.error('groups.json:',e));
+fetch('lookup.json').then(r=>r.json()).then(d=>{LOOKUP=d;onLoaded();}).catch(e=>console.error('lookup.json:',e));
+fetch('parts.json').then(r=>r.json()).then(d=>{PARTS=d;onLoaded();}).catch(e=>console.error('parts.json:',e));
+
+const input=document.getElementById('searchInput'),clearBtn=document.getElementById('clearBtn'),
+  groupsContainer=document.getElementById('groupsContainer'),equivSection=document.getElementById('equivSection'),
+  notFound=document.getElementById('notFound'),statusDot=document.getElementById('statusDot'),
+  statusText=document.getElementById('statusText');
+let debounceTimer;
+
+input.addEventListener('input',()=>{clearTimeout(debounceTimer);debounceTimer=setTimeout(doSearch,180);clearBtn.style.display=input.value?'block':'none';});
+clearBtn.addEventListener('click',()=>{input.value='';clearBtn.style.display='none';clearAll();input.focus();});
+
+function clearAll(){groupsContainer.innerHTML='';equivSection.style.display='none';notFound.style.display='none';statusDot.className='dot idle';statusText.textContent='Introdu un cod pentru a căuta';}
+
+function copyCode(text,el){
+  navigator.clipboard.writeText(text).catch(()=>{});
+  const orig=el.textContent;el.classList.add('copied');el.textContent='✓';
+  setTimeout(()=>{el.classList.remove('copied');el.textContent=orig;},1400);
+}
+
+function pctColor(p){if(p>=80)return'#27ae60';if(p>=50)return'#e67e22';if(p>=25)return'#d35400';return'#999';}
+
+function doSearch(){
+  const raw=input.value.trim();
+  if(!raw){clearAll();return;}
+  const artNrs=LOOKUP[raw.toUpperCase()];
+  groupsContainer.innerHTML='';notFound.style.display='none';equivSection.style.display='none';
+  if(!artNrs||artNrs.length===0){
+    statusDot.className='dot notfound';statusText.textContent='Niciun rezultat pentru "'+raw+'"';
+    document.getElementById('nfCode').textContent=raw;notFound.style.display='block';return;
+  }
+  statusDot.className='dot found';
+  const withParts=artNrs.filter(a=>{const g=GROUPS[a];return g&&!!PARTS[g.m];}).length;
+  statusText.textContent=artNrs.length+' rezultat'+(artNrs.length>1?'e':'')+' — '+(withParts>0?withParts+' cu piese disponibile':'fără piese înregistrate');
+  equivSection.style.display='block';
+
+  artNrs.forEach((artNr,gi)=>{
+    const grp=GROUPS[artNr];if(!grp)return;
+    const mainCode=grp.m,btsCode=grp.bts,allCodes=grp.a,hasParts=!!PARTS[mainCode];
+    const div=document.createElement('div');
+    div.className='result-group'+(hasParts?' has-parts':'');
+    div.style.animationDelay=(gi*35)+'ms';
+
+    const hdr=document.createElement('div');hdr.className='group-header';
+    const mainBtn=document.createElement('span');
+    mainBtn.className='main-code-btn';mainBtn.textContent=mainCode;mainBtn.title='Copiază '+mainCode;
+    mainBtn.addEventListener('click',()=>copyCode(mainCode,mainBtn));
+    hdr.appendChild(mainBtn);
+    const sep=document.createElement('span');sep.className='sep';sep.textContent='/';hdr.appendChild(sep);
+    const btsBtn=document.createElement('span');
+    btsBtn.className='bts-code';btsBtn.textContent=btsCode;btsBtn.title='Copiază '+btsCode;
+    btsBtn.addEventListener('click',()=>copyCode(btsCode,btsBtn));
+    hdr.appendChild(btsBtn);
+
+    const actions=document.createElement('div');actions.className='group-actions';
+    const pt=document.createElement('span');pt.className='parts-tag';
+    if(!hasParts){pt.style.opacity='0.3';pt.style.cursor='default';pt.textContent='piese N/A';}
+    else{pt.textContent='▾ piese';pt.addEventListener('click',()=>toggleParts(div,mainCode,pt));}
+    actions.appendChild(pt);
+    const tb=document.createElement('span');tb.className='toggle-btn';
+    tb.textContent='toate ('+allCodes.length+')';
+    tb.addEventListener('click',()=>toggleEquiv(div,tb,allCodes.length));
+    actions.appendChild(tb);
+    hdr.appendChild(actions);div.appendChild(hdr);
+
+    const equivPanel=document.createElement('div');equivPanel.className='all-equiv';
+    equivPanel.innerHTML='<div class="equiv-label">Toate codurile echivalente</div>';
+    const chips=document.createElement('div');chips.className='equiv-chips';
+    allCodes.forEach(item=>{
+      const chip=document.createElement('span');chip.className='chip';
+      chip.innerHTML=item.c+(item.b?'<span class="brand">'+item.b+'</span>':'');
+      chip.addEventListener('click',()=>copyCode(item.c,chip));
+      chips.appendChild(chip);
+    });
+    equivPanel.appendChild(chips);div.appendChild(equivPanel);
+    const partsWrap=document.createElement('div');partsWrap.className='parts-wrap';
+    div.appendChild(partsWrap);
+    groupsContainer.appendChild(div);
+  });
+
+  if(artNrs.length===1){
+    const grp=GROUPS[artNrs[0]];
+    if(grp){
+      const fd=groupsContainer.querySelector('.result-group');
+      if(fd){
+        const ep=fd.querySelector('.all-equiv'),tb=fd.querySelector('.toggle-btn');
+        if(ep&&tb){ep.classList.add('open');tb.textContent='ascunde';}
+        if(!!PARTS[grp.m]){const pt=fd.querySelector('.parts-tag');setTimeout(()=>{if(pt&&pt.textContent.includes('▾'))toggleParts(fd,grp.m,pt);},200);}
+      }
+    }
+  }
+}
+
+function toggleEquiv(groupDiv,btn,total){
+  const ep=groupDiv.querySelector('.all-equiv');
+  const open=ep.classList.toggle('open');
+  btn.textContent=open?'ascunde':'toate ('+total+')';
+}
+
+function toggleParts(groupDiv,cod,tagEl){
+  const wrap=groupDiv.querySelector('.parts-wrap');
+  if(wrap.style.display!=='none'&&wrap.innerHTML!==''){
+    wrap.innerHTML='';wrap.style.display='none';tagEl.textContent='▾ piese';return;
+  }
+  const items=PARTS[cod];
+  wrap.style.display='block';tagEl.textContent='✕ închide';wrap.innerHTML='';
+  if(!items||items.length===0){
+    wrap.innerHTML='<div class="no-parts-msg">Nu există piese înregistrate pentru '+cod+'</div>';
+    wrap.scrollIntoView({behavior:'smooth',block:'nearest'});return;
+  }
+  const panel=document.createElement('div');panel.className='parts-panel';
+  panel.innerHTML='<div class="parts-header"><div style="display:flex;align-items:center;gap:10px;"><span class="parts-title">Componente necesare</span><span class="parts-cod">'+cod+'</span></div><span class="parts-count">'+items.length+' piese · sortat după frecvență</span></div>';
+  const table=document.createElement('table');table.className='parts-table';
+  table.innerHTML='<thead><tr><th>#</th><th>Cod Componentă</th><th class="def-col">Denumire</th><th class="qty-col">QTY</th><th class="pct-col">% Prezență</th></tr></thead>';
+  const tbody=document.createElement('tbody');
+  items.forEach((item,idx)=>{
+    const pct=item.p||0,color=pctColor(pct),barW=Math.max(4,Math.round(pct));
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="idx-val">'+(idx+1)+'</td><td class="cod-val">'+item.c+'</td><td class="def-val">'+(item.d?item.d:'<span class="no-def">—</span>')+'</td><td class="qty-val">'+item.q+'</td><td class="pct-val"><div class="pct-bar-wrap"><div class="pct-bar" style="width:'+barW+'px;background:'+color+';"></div><span class="pct-text" style="color:'+color+';">'+pct+'%</span></div></td>';
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);panel.appendChild(table);wrap.appendChild(panel);
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+</script>
+</body>
+</html>
