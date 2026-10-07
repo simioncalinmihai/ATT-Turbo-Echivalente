@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATT Echivalente — Căutare Cod</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#e8e8e8;--surface:#f4f4f4;--surface2:#dcdcdc;--border:#b8b8b8;--accent:#cc1500;--text:#1a1a1a;--text-dim:#555555;--green:#27ae60;--red:#c0392b;--mono:"Share Tech Mono",monospace;--head:"Rajdhani",sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--head);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 16px 60px;}
+
+  /* Loading */
+  #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:100;transition:opacity .4s;}
+  #loading.hidden{opacity:0;pointer-events:none;}
+  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #loading p{font-family:var(--mono);font-size:13px;color:var(--text-dim);letter-spacing:1px;}
+  #load-progress{font-family:var(--mono);font-size:12px;color:var(--accent);}
+
+  header{width:100%;max-width:900px;padding:32px 0 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #b8b8b8;margin-bottom:32px;}
+  .logo-img{height:72px;width:auto;flex-shrink:0;}
+  .logo-text h1{font-size:26px;font-weight:700;letter-spacing:2px;color:#cc1500;text-transform:uppercase;}
+  .logo-text p{font-size:13px;letter-spacing:1.5px;color:#555555;text-transform:uppercase;margin-top:2px;}
+  .badges{margin-left:auto;display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+  .badge{background:#ffffff;border:1px solid #cccccc;border-radius:4px;padding:3px 10px;font-family:var(--mono);font-size:12px;color:#555;white-space:nowrap;}
+  .badge span{color:#cc1500;}
+
+  .search-wrap{width:100%;max-width:900px;position:relative;margin-bottom:8px;}
+  .search-wrap input{width:100%;background:#ffffff;border:1px solid #b8b8b8;border-radius:6px;padding:16px 56px 16px 20px;font-family:var(--mono);font-size:20px;color:#1a1a1a;letter-spacing:1px;outline:none;transition:border-color .2s,box-shadow .2s;}
+  .search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(192,57,43,.12);}
+  .search-wrap input::placeholder{color:#aaa;}
+  .search-wrap input:disabled{opacity:.5;}
+  .clear-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px;display:none;}
+  .clear-btn:hover{color:var(--accent);}
+  .hint{font-family:var(--mono);font-size:13px;color:var(--text-dim);margin-bottom:28px;width:100%;max-width:900px;letter-spacing:.5px;}
+
+  .status{display:flex;align-items:center;gap:10px;font-size:15px;letter-spacing:.5px;margin-bottom:16px;color:var(--text-dim);min-height:24px;}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot.found{background:var(--green);box-shadow:0 0 8px var(--green);}
+  .dot.notfound{background:var(--red);}
+  .dot.idle{background:#aaa;}
+
+  .section-label{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+  .section-label::after{content:"";flex:1;height:1px;background:#b8b8b8;}
+
+  .result-group{background:#ffffff;border:1px solid #cccccc;border-radius:8px;overflow:hidden;margin-bottom:12px;animation:fadeIn .18s ease both;}
+  .result-group.has-parts{border-left:3px solid var(--green);}
+
+  .group-header{padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .main-code-btn{font-family:var(--mono);font-size:26px;font-weight:700;color:#000000;letter-spacing:1.5px;background:rgba(192,57,43,.08);border:1.5px solid rgba(192,57,43,.4);border-radius:6px;padding:6px 16px;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0;}
+  .main-code-btn:hover{background:rgba(192,57,43,.15);border-color:var(--accent);}
+  .main-code-btn.copied{background:rgba(39,174,96,.15);border-color:#27ae60;color:#27ae60;}
+  .sep{color:#cccccc;font-size:18px;flex-shrink:0;}
+  .bts-code{font-family:var(--mono);font-size:16px;color:#000000;letter-spacing:1px;flex-shrink:0;cursor:pointer;padding:4px 8px;border:1px solid transparent;border-radius:4px;transition:border-color .15s,color .15s;}
+  .bts-code:hover{border-color:#cccccc;color:#1a1a1a;}
+  .bts-code.copied{border-color:var(--green);color:var(--green);}
+
+  .group-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;}
+  .parts-tag{font-size:12px;letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border-radius:4px;background:rgba(39,174,96,.1);color:var(--green);border:1px solid rgba(39,174,96,.3);cursor:pointer;white-space:nowrap;transition:background .15s;font-family:var(--head);font-weight:600;}
+  .parts-tag:hover{background:rgba(39,174,96,.2);}
+  .toggle-btn{font-size:12px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border:1px solid #cccccc;border-radius:4px;cursor:pointer;transition:color .15s,border-color .15s;font-family:var(--head);font-weight:600;white-space:nowrap;}
+  .toggle-btn:hover{color:var(--text);border-color:#999;}
+
+  .all-equiv{display:none;padding:12px 18px 16px;border-top:1px solid #cccccc;background:#ebebeb;}
+  .all-equiv.open{display:block;}
+  .equiv-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+  .equiv-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-family:var(--mono);font-size:13px;color:#000000;background:#f4f4f4;border:1px solid #cccccc;border-radius:4px;padding:4px 10px;cursor:pointer;transition:border-color .12s,color .12s;display:flex;align-items:center;gap:6px;}
+  .chip:hover{border-color:#999;color:#000;}
+  .chip.copied{border-color:var(--green);color:var(--green);}
+  .chip .brand{font-size:11px;color:#777;font-family:var(--head);letter-spacing:.5px;}
+
+  .parts-wrap{padding:0 18px 16px;display:none;}
+  .parts-panel{background:#ffffff;border:1px solid rgba(192,57,43,.5);border-radius:6px;overflow:hidden;animation:fadeIn .18s ease;}
+  .parts-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(192,57,43,.05);border-bottom:1px solid #cccccc;flex-wrap:wrap;gap:6px;}
+  .parts-title{font-size:13px;font-weight:700;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;}
+  .parts-cod{font-family:var(--mono);font-size:15px;color:#000000;}
+  .parts-count{font-family:var(--mono);font-size:13px;color:var(--text-dim);}
+  .parts-table{width:100%;border-collapse:collapse;}
+  .parts-table th{padding:8px 14px;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#555;text-align:left;border-bottom:1px solid #cccccc;background:#ebebeb;}
+  .parts-table th.qty-col,.parts-table th.pct-col{text-align:center;}
+  .parts-table th.qty-col{width:55px;}
+  .parts-table th.pct-col{width:80px;}
+  .parts-table td{padding:9px 14px;font-family:var(--mono);font-size:13px;border-bottom:1px solid #eeeeee;color:var(--text);vertical-align:middle;}
+  .parts-table td.qty-val{text-align:center;color:var(--accent);font-weight:600;}
+  .parts-table td.pct-val{text-align:center;font-weight:600;}
+  .parts-table tr:last-child td{border-bottom:none;}
+  .parts-table tr:hover td{background:#f9f9f9;}
+  .parts-table td.cod-val{color:#000000;letter-spacing:.5px;white-space:nowrap;}
+  .parts-table td.idx-val{color:#777;font-size:12px;width:32px;}
+  .parts-table td.def-val{color:#444;font-size:12px;font-family:var(--head);}
+  .no-def{color:#aaa;}
+  .pct-bar-wrap{display:flex;align-items:center;gap:6px;justify-content:center;}
+  .pct-bar{height:4px;border-radius:2px;min-width:4px;}
+  .pct-text{font-size:11px;white-space:nowrap;}
+  .no-parts-msg{padding:20px;text-align:center;font-family:var(--mono);font-size:13px;color:var(--text-dim);}
+
+  .not-found{display:none;padding:32px;text-align:center;background:#ffffff;border:1px solid #cccccc;border-radius:8px;}
+  .not-found .nf-icon{font-size:32px;margin-bottom:12px;opacity:.4;}
+  .not-found p{color:#555;font-size:16px;letter-spacing:.5px;}
+  .not-found code{font-family:var(--mono);color:var(--accent);font-size:14px;}
+
+  footer{width:100%;max-width:900px;margin-top:40px;padding-top:16px;border-top:1px solid #b8b8b8;font-size:13px;color:var(--text-dim);font-family:var(--mono);letter-spacing:.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  @media(max-width:640px){
+    .main-code-btn{font-size:20px;padding:5px 12px;}
+    .bts-code{font-size:14px;}
+    .parts-table td,.parts-table th{padding:7px 8px;font-size:11px;}
+    .badges{display:none;}
+    .parts-table td.def-val,.parts-table th.def-col{display:none;}
+    .pct-bar{display:none;}
+  }
+
+  /* Tabs */
+  .tabs{width:100%;max-width:900px;display:flex;gap:8px;margin-bottom:24px;}
+  .tab-btn{font-family:var(--head);font-weight:600;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:10px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);cursor:pointer;transition:all .15s;}
+  .tab-btn:hover{color:var(--text);border-color:#999;}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .view{width:100%;max-width:900px;}
+
+  /* Generator */
+  .gen-config{background:#ffffff;border:1px solid #cccccc;border-radius:8px;padding:18px 20px;margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap;}
+  .gen-field{display:flex;flex-direction:column;gap:6px;}
+  .gen-field label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);}
+  .gen-field select{font-family:var(--mono);font-size:14px;padding:8px 10px;border:1px solid #b8b8b8;border-radius:5px;background:#fff;color:var(--text);min-width:220px;}
+  .gen-textarea{width:100%;min-height:130px;background:#ffffff;border:1px solid #b8b8b8;border-radius:6px;padding:14px 16px;font-family:var(--mono);font-size:14px;color:#1a1a1a;line-height:1.5;resize:vertical;margin-bottom:12px;}
+  .gen-actions{display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
+  .gen-btn{font-family:var(--head);font-weight:600;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:11px 22px;border-radius:6px;cursor:pointer;border:1.5px solid var(--accent);background:rgba(192,57,43,.08);color:var(--accent);transition:background .15s;}
+  .gen-btn:hover{background:rgba(192,57,43,.15);}
+  .gen-btn.primary{background:var(--accent);color:#fff;}
+  .gen-btn.primary:hover{background:#a81200;}
+  .gen-btn:disabled{opacity:.4;cursor:default;}
+  .gen-stats{font-family:var(--mono);font-size:13px;color:var(--text-dim);}
+  .gen-stats b{color:var(--text);}
+  .gen-table-wrap{width:100%;overflow-x:auto;background:#fff;border:1px solid #cccccc;border-radius:8px;margin-bottom:20px;}
+  .gen-table{width:100%;border-collapse:collapse;min-width:760px;}
+  .gen-table th{padding:9px 12px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#555;text-align:left;border-bottom:1px solid #cccccc;background:#ebebeb;white-space:nowrap;}
+  .gen-table td{padding:8px 12px;font-family:var(--mono);font-size:13px;border-bottom:1px solid #eeeeee;color:var(--text);vertical-align:middle;}
+  .gen-table tr:last-child td{border-bottom:none;}
+  .gen-table tr.notfound-row td{color:#c0392b;}
+  .gen-table select{font-family:var(--mono);font-size:12px;padding:5px 6px;border:1px solid #cccccc;border-radius:4px;background:#fff;color:var(--text);max-width:220px;}
+  .gen-table .plain-val{white-space:nowrap;}
+  .gen-table .na-val{color:#aaa;}
+  .gen-brand-tag{display:block;font-family:var(--head);font-size:11px;color:#777;letter-spacing:.5px;margin-top:2px;}
+  .status-pill{display:inline-block;font-size:11px;letter-spacing:.5px;padding:3px 8px;border-radius:4px;font-family:var(--head);font-weight:600;text-transform:uppercase;}
+  .status-pill.ok{background:rgba(39,174,96,.12);color:var(--green);}
+  .status-pill.ambig{background:rgba(230,126,34,.14);color:#e67e22;}
+  .status-pill.bad{background:rgba(192,57,43,.12);color:var(--red);}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Se încarcă baza de date...</p>
+  <div id="load-progress">0 / 3 fișiere</div>
+</div>
+
+<header>
+  <img src="logo.jpg" class="logo-img" alt="ATT Logo">
+  <div class="logo-text">
+    <h1>ATT Echivalente</h1>
+    <p>Sistem căutare coduri echivalente</p>
+  </div>
+  <div class="badges">
+    <div class="badge">Echivalente: <span id="db-count">—</span></div>
+    <div class="badge">Turbine cu piese: <span id="parts-count">—</span></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tabSearchBtn">Căutare</button>
+  <button class="tab-btn" id="tabGenBtn">Generator listă</button>
+</div>
+
+<div class="view" id="viewSearch">
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Introdu orice cod: BTS, Garrett, OEM..." autocomplete="off" autocorrect="off" spellcheck="false" disabled>
+    <button class="clear-btn" id="clearBtn">✕</button>
+  </div>
+  <div class="hint">Cod principal (12xxx/13xxx) + cod BTS · click pe cod = copiază · "piese" = componente cu frecvență · "toate" = toate echivalentele</div>
+
+  <div style="width:100%;">
+    <div class="status"><div class="dot idle" id="statusDot"></div><span id="statusText">Se încarcă datele...</span></div>
+    <div id="equivSection" style="display:none;">
+      <div class="section-label">Rezultate</div>
+      <div id="groupsContainer"></div>
+    </div>
+    <div class="not-found" id="notFound">
+      <div class="nf-icon">⊘</div>
+      <p>Niciun echivalent BE Turbo găsit pentru <code id="nfCode"></code></p>
+      <p style="margin-top:8px;font-size:14px;">Codul nu există sau nu are corespondent 12xxx/13xxx</p>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="viewGenerator" style="display:none;">
+  <div class="gen-config">
+    <div class="gen-field">
+      <label>Coloană brand 1</label>
+      <select id="brand1Select"></select>
+    </div>
+    <div class="gen-field">
+      <label>Coloană brand 2</label>
+      <select id="brand2Select"></select>
+    </div>
+  </div>
+  <textarea class="gen-textarea" id="genTextarea" placeholder="Lipește codurile aici, câte unul pe linie (sau separate prin virgulă)..." disabled></textarea>
+  <div class="gen-actions">
+    <button class="gen-btn primary" id="genProcessBtn" disabled>Procesează lista</button>
+    <button class="gen-btn" id="genExportBtn" disabled>Exportă Excel (.xlsx)</button>
+    <span class="gen-stats" id="genStats"></span>
+  </div>
+  <div class="gen-table-wrap" id="genTableWrap" style="display:none;">
+    <table class="gen-table" id="genTable">
+      <thead><tr>
+        <th>#</th><th>Cod introdus</th><th>Grupă</th><th>Cod principal</th><th>Cod BTS</th><th id="genBrand1Head">Brand 1</th><th id="genBrand2Head">Brand 2</th><th>Status</th>
+      </tr></thead>
+      <tbody id="genTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  <span>© ATT Turbo Balancing Systems</span>
+  <span>bts_Echivalente · BAZA_DATE_PIESE · BAZA_DATE_RETETA</span>
+</footer>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+let GROUPS={}, LOOKUP={}, PARTS={};
+let loaded=0;
+let BRANDS=[];
+
+function onLoaded(){
+  loaded++;
+  document.getElementById('load-progress').textContent=loaded+' / 3 fișiere';
+  if(loaded===3){
+    document.getElementById('db-count').textContent=Object.keys(LOOKUP).length.toLocaleString('ro-RO');
+    document.getElementById('parts-count').textContent=Object.keys(PARTS).length.toLocaleString('ro-RO');
+    document.getElementById('loading').classList.add('hidden');
+    const inp=document.getElementById('searchInput');
+    inp.disabled=false; inp.focus();
+    document.getElementById('statusText').textContent='Introdu un cod pentru a căuta';
+    initGenerator();
+  }
+}
+
+fetch('groups.json').then(r=>r.json()).then(d=>{GROUPS=d;onLoaded();}).catch(e=>console.error('groups.json:',e));
+fetch('lookup.json').then(r=>r.json()).then(d=>{LOOKUP=d;onLoaded();}).catch(e=>console.error('lookup.json:',e));
+fetch('parts.json').then(r=>r.json()).then(d=>{PARTS=d;onLoaded();}).catch(e=>console.error('parts.json:',e));
+
+const input=document.getElementById('searchInput'),clearBtn=document.getElementById('clearBtn'),
+  groupsContainer=document.getElementById('groupsContainer'),equivSection=document.getElementById('equivSection'),
+  notFound=document.getElementById('notFound'),statusDot=document.getElementById('statusDot'),
+  statusText=document.getElementById('statusText');
+let debounceTimer;
+
+input.addEventListener('input',()=>{clearTimeout(debounceTimer);debounceTimer=setTimeout(doSearch,180);clearBtn.style.display=input.value?'block':'none';});
+clearBtn.addEventListener('click',()=>{input.value='';clearBtn.style.display='none';clearAll();input.focus();});
+
+function clearAll(){groupsContainer.innerHTML='';equivSection.style.display='none';notFound.style.display='none';statusDot.className='dot idle';statusText.textContent='Introdu un cod pentru a căuta';}
+
+function copyCode(text,el){
+  navigator.clipboard.writeText(text).catch(()=>{});
+  const orig=el.textContent;el.classList.add('copied');el.textContent='✓';
+  setTimeout(()=>{el.classList.remove('copied');el.textContent=orig;},1400);
+}
+
+function pctColor(p){if(p>=80)return'#27ae60';if(p>=50)return'#e67e22';if(p>=25)return'#d35400';return'#999';}
+
+/* Normalizare cod: elimină spații / minus / punct (ex. BorgWarner 5440-970-0036 -> 54409700036) */
+function normCode(s){return String(s).toUpperCase().replace(/[\s\-.]/g,'');}
+
+/* Caută codul exact; dacă nu există, încearcă variantele cu/fără minus (BorgWarner 4-3-4) */
+function findCode(raw){
+  const up=String(raw).trim().toUpperCase();
+  if(LOOKUP[up]) return {key:up,artNrs:LOOKUP[up]};
+  const stripped=normCode(up);
+  if(LOOKUP[stripped]) return {key:stripped,artNrs:LOOKUP[stripped]};
+  const m=stripped.match(/^(\d{4})(\d{3})(\d{4})(.*)$/);
+  if(m){
+    const dashed=m[1]+'-'+m[2]+'-'+m[3]+m[4];
+    if(LOOKUP[dashed]) return {key:dashed,artNrs:LOOKUP[dashed]};
+  }
+  return {key:up,artNrs:[]};
+}
+
+function doSearch(){
+  const raw=input.value.trim();
+  if(!raw){clearAll();return;}
+  const artNrs=findCode(raw).artNrs;
+  groupsContainer.innerHTML='';notFound.style.display='none';equivSection.style.display='none';
+  if(!artNrs||artNrs.length===0){
+    statusDot.className='dot notfound';statusText.textContent='Niciun rezultat pentru "'+raw+'"';
+    document.getElementById('nfCode').textContent=raw;notFound.style.display='block';return;
+  }
+  statusDot.className='dot found';
+  const withParts=artNrs.filter(a=>{const g=GROUPS[a];return g&&!!PARTS[g.m];}).length;
+  statusText.textContent=artNrs.length+' rezultat'+(artNrs.length>1?'e':'')+' — '+(withParts>0?withParts+' cu piese disponibile':'fără piese înregistrate');
+  equivSection.style.display='block';
+
+  artNrs.forEach((artNr,gi)=>{
+    const grp=GROUPS[artNr];if(!grp)return;
+    const mainCode=grp.m,btsCode=grp.bts,allCodes=grp.a,hasParts=!!PARTS[mainCode];
+    const div=document.createElement('div');
+    div.className='result-group'+(hasParts?' has-parts':'');
+    div.style.animationDelay=(gi*35)+'ms';
+
+    const hdr=document.createElement('div');hdr.className='group-header';
+    const mainBtn=document.createElement('span');
+    mainBtn.className='main-code-btn';mainBtn.textContent=mainCode;mainBtn.title='Copiază '+mainCode;
+    mainBtn.addEventListener('click',()=>copyCode(mainCode,mainBtn));
+    hdr.appendChild(mainBtn);
+    const sep=document.createElement('span');sep.className='sep';sep.textContent='/';hdr.appendChild(sep);
+    const btsBtn=document.createElement('span');
+    btsBtn.className='bts-code';btsBtn.textContent=btsCode;btsBtn.title='Copiază '+btsCode;
+    btsBtn.addEventListener('click',()=>copyCode(btsCode,btsBtn));
+    hdr.appendChild(btsBtn);
+
+    const actions=document.createElement('div');actions.className='group-actions';
+    const pt=document.createElement('span');pt.className='parts-tag';
+    if(!hasParts){pt.style.opacity='0.3';pt.style.cursor='default';pt.textContent='piese N/A';}
+    else{pt.textContent='▾ piese';pt.addEventListener('click',()=>toggleParts(div,mainCode,pt));}
+    actions.appendChild(pt);
+    const tb=document.createElement('span');tb.className='toggle-btn';
+    tb.textContent='toate ('+allCodes.length+')';
+    tb.addEventListener('click',()=>toggleEquiv(div,tb,allCodes.length));
+    actions.appendChild(tb);
+    hdr.appendChild(actions);div.appendChild(hdr);
+
+    const equivPanel=document.createElement('div');equivPanel.className='all-equiv';
+    equivPanel.innerHTML='<div class="equiv-label">Toate codurile echivalente</div>';
+    const chips=document.createElement('div');chips.className='equiv-chips';
+    allCodes.forEach(item=>{
+      const chip=document.createElement('span');chip.className='chip';
+      chip.innerHTML=item.c+(item.b?'<span class="brand">'+item.b+'</span>':'');
+      chip.addEventListener('click',()=>copyCode(item.c,chip));
+      chips.appendChild(chip);
+    });
+    equivPanel.appendChild(chips);div.appendChild(equivPanel);
+    const partsWrap=document.createElement('div');partsWrap.className='parts-wrap';
+    div.appendChild(partsWrap);
+    groupsContainer.appendChild(div);
+  });
+
+  if(artNrs.length===1){
+    const grp=GROUPS[artNrs[0]];
+    if(grp){
+      const fd=groupsContainer.querySelector('.result-group');
+      if(fd){
+        const ep=fd.querySelector('.all-equiv'),tb=fd.querySelector('.toggle-btn');
+        if(ep&&tb){ep.classList.add('open');tb.textContent='ascunde';}
+        if(!!PARTS[grp.m]){const pt=fd.querySelector('.parts-tag');setTimeout(()=>{if(pt&&pt.textContent.includes('▾'))toggleParts(fd,grp.m,pt);},200);}
+      }
+    }
+  }
+}
+
+function toggleEquiv(groupDiv,btn,total){
+  const ep=groupDiv.querySelector('.all-equiv');
+  const open=ep.classList.toggle('open');
+  btn.textContent=open?'ascunde':'toate ('+total+')';
+}
+
+function toggleParts(groupDiv,cod,tagEl){
+  const wrap=groupDiv.querySelector('.parts-wrap');
+  if(wrap.style.display!=='none'&&wrap.innerHTML!==''){
+    wrap.innerHTML='';wrap.style.display='none';tagEl.textContent='▾ piese';return;
+  }
+  const items=PARTS[cod];
+  wrap.style.display='block';tagEl.textContent='✕ închide';wrap.innerHTML='';
+  if(!items||items.length===0){
+    wrap.innerHTML='<div class="no-parts-msg">Nu există piese înregistrate pentru '+cod+'</div>';
+    wrap.scrollIntoView({behavior:'smooth',block:'nearest'});return;
+  }
+  const panel=document.createElement('div');panel.className='parts-panel';
+  panel.innerHTML='<div class="parts-header"><div style="display:flex;align-items:center;gap:10px;"><span class="parts-title">Componente necesare</span><span class="parts-cod">'+cod+'</span></div><span class="parts-count">'+items.length+' piese · sortat după frecvență</span></div>';
+  const table=document.createElement('table');table.className='parts-table';
+  table.innerHTML='<thead><tr><th>#</th><th>Cod Componentă</th><th class="def-col">Denumire</th><th class="qty-col">QTY</th><th class="pct-col">% Prezență</th></tr></thead>';
+  const tbody=document.createElement('tbody');
+  items.forEach((item,idx)=>{
+    const pct=item.p||0,color=pctColor(pct),barW=Math.max(4,Math.round(pct));
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="idx-val">'+(idx+1)+'</td><td class="cod-val">'+item.c+'</td><td class="def-val">'+(item.d?item.d:'<span class="no-def">—</span>')+'</td><td class="qty-val">'+item.q+'</td><td class="pct-val"><div class="pct-bar-wrap"><div class="pct-bar" style="width:'+barW+'px;background:'+color+';"></div><span class="pct-text" style="color:'+color+';">'+pct+'%</span></div></td>';
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);panel.appendChild(table);wrap.appendChild(panel);
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ---------- Tabs ---------- */
+const tabSearchBtn=document.getElementById('tabSearchBtn'),tabGenBtn=document.getElementById('tabGenBtn'),
+  viewSearch=document.getElementById('viewSearch'),viewGenerator=document.getElementById('viewGenerator');
+tabSearchBtn.addEventListener('click',()=>{tabSearchBtn.classList.add('active');tabGenBtn.classList.remove('active');viewSearch.style.display='block';viewGenerator.style.display='none';});
+tabGenBtn.addEventListener('click',()=>{tabGenBtn.classList.add('active');tabSearchBtn.classList.remove('active');viewGenerator.style.display='block';viewSearch.style.display='none';});
+
+/* ---------- Generator listă ---------- */
+let genRows=[];
+const brand1Select=document.getElementById('brand1Select'),brand2Select=document.getElementById('brand2Select'),
+  genTextarea=document.getElementById('genTextarea'),genProcessBtn=document.getElementById('genProcessBtn'),
+  genExportBtn=document.getElementById('genExportBtn'),genStats=document.getElementById('genStats'),
+  genTableWrap=document.getElementById('genTableWrap'),genTableBody=document.getElementById('genTableBody'),
+  genBrand1Head=document.getElementById('genBrand1Head'),genBrand2Head=document.getElementById('genBrand2Head');
+
+const GENERAL='__GENERAL__';
+function brandLabel(b){return b===GENERAL?'General':b;}
+
+function initGenerator(){
+  const freq={};
+  Object.values(GROUPS).forEach(g=>{(g.a||[]).forEach(x=>{const b=x.b||'(fără brand)';freq[b]=(freq[b]||0)+1;});});
+  BRANDS=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]);
+  const defaults=['GARRETT','BorgWarner'];
+  [brand1Select,brand2Select].forEach((sel,i)=>{
+    sel.innerHTML='';
+    const gen=document.createElement('option');gen.value=GENERAL;gen.textContent='GENERAL (brandul codului introdus)';
+    sel.appendChild(gen);
+    BRANDS.forEach(b=>{
+      const opt=document.createElement('option');opt.value=b;opt.textContent=b+' ('+freq[b]+')';
+      sel.appendChild(opt);
+    });
+    const def=defaults[i];
+    if(def && freq[def]!==undefined) sel.value=def; else sel.selectedIndex=Math.min(i,BRANDS.length-1);
+  });
+  genBrand1Head.textContent=brandLabel(brand1Select.value);
+  genBrand2Head.textContent=brandLabel(brand2Select.value);
+  genTextarea.disabled=false;
+  genProcessBtn.disabled=false;
+  brand1Select.addEventListener('change',()=>{
+    genBrand1Head.textContent=brandLabel(brand1Select.value);
+    genRows.forEach(r=>r.brand1Sel=null);
+    if(genRows.length) renderGenTable();
+  });
+  brand2Select.addEventListener('change',()=>{
+    genBrand2Head.textContent=brandLabel(brand2Select.value);
+    genRows.forEach(r=>r.brand2Sel=null);
+    if(genRows.length) renderGenTable();
+  });
+  genProcessBtn.addEventListener('click',processGenList);
+  genExportBtn.addEventListener('click',exportGenExcel);
+}
+
+function processGenList(){
+  const raw=genTextarea.value;
+  const codes=raw.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean);
+  genRows=codes.map(raw=>{
+    const codeUpper=raw.toUpperCase();
+    const artNrs=findCode(raw).artNrs;
+    return {raw,codeUpper,artNrs,groupSel:artNrs[0]||null,brand1Sel:null,brand2Sel:null};
+  });
+  genTableWrap.style.display=genRows.length?'block':'none';
+  genExportBtn.disabled=genRows.length===0;
+  renderGenTable();
+}
+
+/* Codul din grupă care corespunde codului introdus (comparat fără minus/spații) */
+function inputItem(grp,row){
+  if(!grp) return null;
+  const n=normCode(row.raw);
+  return (grp.a||[]).find(x=>normCode(x.c)===n)||null;
+}
+
+function rowMatches(grp,brand,row){
+  if(!grp) return [];
+  if(brand===GENERAL){
+    /* GENERAL = același brand ca al codului introdus; codul introdus primul */
+    const it=inputItem(grp,row);
+    if(!it) return [];
+    const b=it.b||'(fără brand)';
+    const list=(grp.a||[]).filter(x=>(x.b||'(fără brand)')===b);
+    return [it].concat(list.filter(x=>x!==it&&x.c!==it.c));
+  }
+  return (grp.a||[]).filter(x=>(x.b||'(fără brand)')===brand);
+}
+
+function rowBrandOf(grp,brand,row){
+  if(brand!==GENERAL) return brand;
+  const it=inputItem(grp,row);
+  return it?(it.b||'(fără brand)'):'';
+}
+
+function ensureRowDefaults(row){
+  const grp=row.groupSel?GROUPS[row.groupSel]:null;
+  const brand1=brand1Select.value,brand2=brand2Select.value;
+  const b1matches=rowMatches(grp,brand1,row),b2matches=rowMatches(grp,brand2,row);
+  if(!row.brand1Sel || !b1matches.some(m=>m.c===row.brand1Sel)) row.brand1Sel=b1matches[0]?b1matches[0].c:null;
+  if(!row.brand2Sel || !b2matches.some(m=>m.c===row.brand2Sel)) row.brand2Sel=b2matches[0]?b2matches[0].c:null;
+  return {grp,b1matches,b2matches};
+}
+
+function makeCell(value,matches,onChange,brandTag){
+  if(matches.length>1){
+    const sel=document.createElement('select');
+    matches.forEach(m=>{
+      const opt=document.createElement('option');opt.value=m.c;opt.textContent=m.c;
+      if(m.c===value) opt.selected=true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change',()=>onChange(sel.value));
+    const td=document.createElement('td');td.appendChild(sel);addBrandTag(td,brandTag);return td;
+  }
+  const td=document.createElement('td');
+  if(value){td.className='plain-val';td.textContent=value;addBrandTag(td,brandTag);}
+  else{td.className='na-val';td.textContent='—';}
+  return td;
+}
+
+function addBrandTag(td,brandTag){
+  if(!brandTag) return;
+  const s=document.createElement('span');s.className='gen-brand-tag';s.textContent=brandTag;
+  td.appendChild(s);
+}
+
+function renderGenTable(){
+  genTableBody.innerHTML='';
+  let okCount=0,ambigCount=0,badCount=0;
+  genRows.forEach((row,idx)=>{
+    const tr=document.createElement('tr');
+    const found=row.artNrs.length>0;
+    if(!found){tr.classList.add('notfound-row');badCount++;}
+    else if(row.artNrs.length>1) ambigCount++; else okCount++;
+
+    const tdIdx=document.createElement('td');tdIdx.textContent=(idx+1);tr.appendChild(tdIdx);
+    const tdCode=document.createElement('td');tdCode.className='plain-val';tdCode.textContent=row.raw;tr.appendChild(tdCode);
+
+    const tdGroup=document.createElement('td');
+    if(row.artNrs.length>1){
+      const sel=document.createElement('select');
+      row.artNrs.forEach(an=>{
+        const g=GROUPS[an];
+        const opt=document.createElement('option');opt.value=an;
+        opt.textContent=g?(g.m+' / '+g.bts):an;
+        if(an===row.groupSel) opt.selected=true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change',()=>{row.groupSel=sel.value;row.brand1Sel=null;row.brand2Sel=null;renderGenTable();});
+      tdGroup.appendChild(sel);
+    } else if(row.artNrs.length===1){
+      tdGroup.className='plain-val';tdGroup.textContent='—';
+    } else {
+      tdGroup.className='na-val';tdGroup.textContent='—';
+    }
+    tr.appendChild(tdGroup);
+
+    const {grp,b1matches,b2matches}=ensureRowDefaults(row);
+
+    const tdMain=document.createElement('td');
+    tdMain.className=grp?'plain-val':'na-val';tdMain.textContent=grp?grp.m:'—';tr.appendChild(tdMain);
+    const tdBts=document.createElement('td');
+    tdBts.className=grp?'plain-val':'na-val';tdBts.textContent=grp?grp.bts:'—';tr.appendChild(tdBts);
+
+    const b1tag=brand1Select.value===GENERAL?rowBrandOf(grp,GENERAL,row):'';
+    const b2tag=brand2Select.value===GENERAL?rowBrandOf(grp,GENERAL,row):'';
+    tr.appendChild(makeCell(row.brand1Sel,b1matches,(v)=>{row.brand1Sel=v;},b1tag));
+    tr.appendChild(makeCell(row.brand2Sel,b2matches,(v)=>{row.brand2Sel=v;},b2tag));
+
+    const tdStatus=document.createElement('td');
+    const pill=document.createElement('span');pill.className='status-pill '+(!found?'bad':(row.artNrs.length>1?'ambig':'ok'));
+    pill.textContent=!found?'negăsit':(row.artNrs.length>1?'ambiguu':'ok');
+    tdStatus.appendChild(pill);tr.appendChild(tdStatus);
+
+    genTableBody.appendChild(tr);
+  });
+  genStats.innerHTML='Total: <b>'+genRows.length+'</b> · OK: <b>'+okCount+'</b> · Ambigue: <b>'+ambigCount+'</b> · Negăsite: <b>'+badCount+'</b>';
+}
+
+function exportGenExcel(){
+  if(!genRows.length) return;
+  const b1=brand1Select.value,b2=brand2Select.value;
+  let b1label=brandLabel(b1),b2label=brandLabel(b2);
+  if(b1label===b2label){b1label+=' 1';b2label+=' 2';}
+  const rows=genRows.map(row=>{
+    const grp=row.groupSel?GROUPS[row.groupSel]:null;
+    const found=row.artNrs.length>0;
+    const out={};
+    out['Cod introdus']=row.raw;
+    out['Cod principal']=grp?grp.m:'';
+    out['Cod BTS']=grp?grp.bts:'';
+    out[b1label]=row.brand1Sel||'';
+    if(b1===GENERAL) out['Brand ('+b1label+')']=rowBrandOf(grp,GENERAL,row);
+    out[b2label]=row.brand2Sel||'';
+    if(b2===GENERAL) out['Brand ('+b2label+')']=rowBrandOf(grp,GENERAL,row);
+    out['Status']=!found?'NEGĂSIT':(row.artNrs.length>1?'AMBIGUU - verificat manual':'OK');
+    return out;
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=Object.keys(rows[0]).map(k=>({wch:Math.max(16,k.length+4)}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Echivalente');
+  const stamp=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'ATT_Echivalente_'+stamp+'.xlsx');
+}
+</script>
+</body>
+</html>
